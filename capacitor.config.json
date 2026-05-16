@@ -1,0 +1,5 @@
+{
+  "appId": "com.antigravity.elm327",
+  "appName": "elm327",
+  "webDir": "dist"
+}

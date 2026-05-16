@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">elm327</string>
+    <string name="title_activity_main">elm327</string>
+    <string name="package_name">com.antigravity.elm327</string>
+    <string name="custom_url_scheme">com.antigravity.elm327</string>
+</resources>
