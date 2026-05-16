@@ -272,6 +272,7 @@ class ObdService {
     console.log(`> OBD TX: ${cmd}`);
     if (this.isCapacitor && this.connectionType !== 'wifi') {
       if (this.connectionType === 'ble') {
+        this.bleDataBuffer = '';
         const data = new TextEncoder().encode(cmd + '\r');
         await BleClient.write(this.bleDeviceId, this.activeServiceUuid, this.activeCharUuid, data);
       } else {
@@ -289,7 +290,6 @@ class ObdService {
 
     try {
       if (this.isCapacitor && this.connectionType === 'ble') {
-        this.bleDataBuffer = '';
         this.bleDataTarget = char;
         return new Promise((resolve, reject) => {
           this.bleDataResolver = () => {
