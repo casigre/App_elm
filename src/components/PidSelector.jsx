@@ -10,17 +10,26 @@ const PidSelector = () => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [customPids, setCustomPids] = useState([]);
+  const [deletedPids, setDeletedPids] = useState([]);
   const [brands, setBrands] = useState([]);
   const [selectedBrand, setSelectedBrand] = useState('Renault K9');
 
+  const saveDeleted = (list) => {
+    try { localStorage.setItem('deletedPids', JSON.stringify(list)); } catch (e) {}
+  };
+
   useEffect(() => {
     let storedCustom = [];
+    let storedDeleted = [];
     try {
       const raw = localStorage.getItem('customPids');
       if (raw) storedCustom = JSON.parse(raw);
+      const rawDel = localStorage.getItem('deletedPids');
+      if (rawDel) storedDeleted = JSON.parse(rawDel);
     } catch (e) {}
 
     setCustomPids(storedCustom);
+    setDeletedPids(storedDeleted);
 
     fetch('./pids.csv')
       .then(response => response.text())
@@ -58,11 +67,10 @@ const PidSelector = () => {
 
   const handleBrandChange = (brand) => {
     setSelectedBrand(brand);
-    const brandPids = [...customPids.filter(p => p.Brand === brand || !p.Brand), ...pids.filter(p => p.Brand === brand)];
+    const brandPids = [...customPids.filter(p => p.Brand === brand || !p.Brand), ...pids.filter(p => p.Brand === brand && !deletedPids.includes(p.ModeAndPID))];
     if (brandPids.length > 0) {
-      const defaults = brandPids;
-      setSelectedPids(defaults);
-      try { localStorage.setItem('selectedPids', JSON.stringify(defaults)); } catch (e) {}
+      setSelectedPids(brandPids);
+      try { localStorage.setItem('selectedPids', JSON.stringify(brandPids)); } catch (e) {}
     }
   };
 
@@ -107,18 +115,24 @@ const PidSelector = () => {
     setShowForm(false);
   };
 
-  const deleteCustomPid = (pidCode, e) => {
+  const handleDelete = (pidCode, e) => {
     e.stopPropagation();
-    const updated = customPids.filter(p => p.ModeAndPID !== pidCode);
-    setCustomPids(updated);
-    try { localStorage.setItem('customPids', JSON.stringify(updated)); } catch (e) {}
+    if (customPids.some(p => p.ModeAndPID === pidCode)) {
+      const updated = customPids.filter(p => p.ModeAndPID !== pidCode);
+      setCustomPids(updated);
+      try { localStorage.setItem('customPids', JSON.stringify(updated)); } catch (e) {}
+    } else {
+      const updated = [...deletedPids, pidCode];
+      setDeletedPids(updated);
+      saveDeleted(updated);
+    }
 
     const updatedSelected = selectedPids.filter(p => p.ModeAndPID !== pidCode);
     setSelectedPids(updatedSelected);
     try { localStorage.setItem('selectedPids', JSON.stringify(updatedSelected)); } catch (e) {}
   };
 
-  const allPids = [...customPids, ...pids];
+  const allPids = [...customPids, ...pids.filter(p => !deletedPids.includes(p.ModeAndPID) && !customPids.some(c => c.ModeAndPID === p.ModeAndPID))];
   const filteredPids = allPids.filter(pid => {
     const matchesSearch =
       pid.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -143,6 +157,14 @@ const PidSelector = () => {
             <option key={brand} value={brand}>{brand}</option>
           ))}
         </select>
+        <span className="brand-reset" onClick={() => {
+          setDeletedPids([]);
+          saveDeleted([]);
+          setCustomPids([]);
+          try { localStorage.setItem('customPids', JSON.stringify([])); } catch (e) {}
+          setSelectedPids(pids.filter(p => p.Brand === 'Renault K9'));
+          try { localStorage.setItem('selectedPids', JSON.stringify(pids.filter(p => p.Brand === 'Renault K9'))); } catch (e) {}
+        }}>⚠ reset</span>
       </div>
 
       <div className="search-bar">
@@ -195,15 +217,13 @@ const PidSelector = () => {
               >
                 <Edit2 size={16} />
               </button>
-
-              {pid.isCustom && (
-                <button
-                  className="delete-pid-btn"
-                  onClick={(e) => deleteCustomPid(pid.ModeAndPID, e)}
-                >
-                  <Trash2 size={16} />
-                </button>
-              )}
+              <button
+                className="delete-pid-btn"
+                onClick={(e) => handleDelete(pid.ModeAndPID, e)}
+                title="Eliminar"
+              >
+                <Trash2 size={16} />
+              </button>
             </div>
 
             <div className={`selection-indicator ${selectedPids.some(p => p.ModeAndPID === pid.ModeAndPID) ? 'active' : ''}`}></div>

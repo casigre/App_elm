@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Zap, Gauge, History, Search, Power } from 'lucide-react';
+import { Settings, Zap, Gauge, History, Search, Power, BarChart3 } from 'lucide-react';
 import { App as CapApp } from '@capacitor/app';
 import Dashboard from './components/Dashboard';
+import DpfChart from './components/DpfChart';
 import PidSelector from './components/PidSelector';
 import obdService from './services/obdService';
 
@@ -10,18 +11,35 @@ const App = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
-  const [connMode, setConnMode] = useState('bluetooth'); // 'bluetooth' or 'wifi'
+  const [connMode, setConnMode] = useState('bluetooth');
   const [wifiIp, setWifiIp] = useState('192.168.0.10');
   const [wifiPort, setWifiPort] = useState('35000');
+  const [data, setData] = useState({});
 
   useEffect(() => {
-    // Poll service status
     const timer = setInterval(() => {
       setIsConnected(obdService.isConnected);
       setIsConnecting(obdService.isConnecting);
       setStatusMsg(obdService.statusMessage);
     }, 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    let pids = [];
+    try {
+      const saved = localStorage.getItem('selectedPids');
+      if (saved) pids = JSON.parse(saved);
+    } catch (e) {}
+
+    if (pids.length > 0) {
+      obdService.setPids(pids);
+      obdService.startPolling((pidCode, value) => {
+        setData(prev => ({ ...prev, [pidCode]: value }));
+      });
+    }
+
+    return () => obdService.stopPolling();
   }, []);
 
   const handleConnect = async () => {
@@ -32,7 +50,6 @@ const App = () => {
       } else {
         success = await obdService.connect();
       }
-      
       if (!success && !obdService.statusMessage.includes("Error")) {
         alert("No se pudo conectar. Revisa la configuración.");
       }
@@ -60,7 +77,6 @@ const App = () => {
 
   return (
     <div className="app-container">
-      {/* Header */}
       <header className="app-header">
         <div className="logo">
           ELM<span className="logo-accent">327</span>
@@ -76,127 +92,88 @@ const App = () => {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="app-content">
-        {activeTab === 'dashboard' && <Dashboard />}
+        {activeTab === 'dashboard' && <Dashboard data={data} />}
+        {activeTab === 'dpf' && (
+          <div className="dpf-page">
+            <DpfChart
+              rpm={data['22210E']}
+              diffPressure={data['222542']}
+            />
+            <div className="dpf-page-info glass-card">
+              <h3>Interpretación del gráfico</h3>
+              <p className="text-dim">El punto ● muestra la presión diferencial actual del filtro a las RPM del motor.</p>
+              <ul className="dpf-legend">
+                <li><span className="legend-dot" style={{background:'#4ade80'}}></span> Verde: Filtro limpio</li>
+                <li><span className="legend-dot" style={{background:'#facc15'}}></span> Amarillo: Capacidad media</li>
+                <li><span className="legend-dot" style={{background:'#ef4444'}}></span> Rojo: Necesita regeneración</li>
+              </ul>
+              <p className="text-dim">Requiere los PIDs <code>22210E</code> (RPM) y <code>222542</code> (Presión Diferencial FAP) activos.</p>
+            </div>
+          </div>
+        )}
         {activeTab === 'pids' && <PidSelector />}
         {activeTab === 'settings' && (
           <div className="settings-panel glass-card">
             <h2>Hardware OBDII</h2>
-            
             <div className="mode-toggle">
-              <button 
-                className={`mode-btn ${connMode === 'bluetooth' ? 'active' : ''}`}
-                onClick={() => setConnMode('bluetooth')}
-              >
-                Bluetooth
-              </button>
-              <button 
-                className={`mode-btn ${connMode === 'wifi' ? 'active' : ''}`}
-                onClick={() => setConnMode('wifi')}
-              >
-                Wi-Fi
-              </button>
+              <button className={`mode-btn ${connMode === 'bluetooth' ? 'active' : ''}`} onClick={() => setConnMode('bluetooth')}>Bluetooth</button>
+              <button className={`mode-btn ${connMode === 'wifi' ? 'active' : ''}`} onClick={() => setConnMode('wifi')}>Wi-Fi</button>
             </div>
-
             <div className="status-message-box">
               <span className="status-dot"></span>
               {statusMsg || (isConnected ? 'Conectado' : 'Listo para conectar')}
             </div>
-
             {connMode === 'wifi' && (
               <div className="wifi-settings premium-form">
                 <div className="form-row">
                   <div className="form-group">
                     <label>Dirección IP</label>
-                    <input 
-                      type="text" 
-                      value={wifiIp} 
-                      onChange={(e) => setWifiIp(e.target.value)}
-                      placeholder="192.168.0.10"
-                    />
+                    <input type="text" value={wifiIp} onChange={(e) => setWifiIp(e.target.value)} placeholder="192.168.0.10" />
                   </div>
                   <div className="form-group">
                     <label>Puerto</label>
-                    <input 
-                      type="text" 
-                      value={wifiPort} 
-                      onChange={(e) => setWifiPort(e.target.value)}
-                      placeholder="35000"
-                    />
+                    <input type="text" value={wifiPort} onChange={(e) => setWifiPort(e.target.value)} placeholder="35000" />
                   </div>
                 </div>
               </div>
             )}
-
             <div className="connection-actions">
               {!isConnected ? (
-                <button 
-                  className="connect-btn pulse-interactive" 
-                  onClick={handleConnect}
-                  disabled={isConnecting}
-                >
+                <button className="connect-btn pulse-interactive" onClick={handleConnect} disabled={isConnecting}>
                   {isConnecting ? 'Conectando...' : `Conectar por ${connMode === 'wifi' ? 'Wi-Fi' : 'Bluetooth'}`}
                 </button>
               ) : (
-                <button className="disconnect-btn" onClick={handleDisconnect}>
-                  Desconectar Dispositivo
-                </button>
+                <button className="disconnect-btn" onClick={handleDisconnect}>Desconectar Dispositivo</button>
               )}
             </div>
-            
             <div className="info-box">
-              {connMode === 'wifi' ? (
-                <>
-                  <h3>Instrucciones Wi-Fi</h3>
-                  <ol className="step-list">
-                    <li><strong>Paso 1:</strong> Ve a los ajustes de Wi-Fi de tu PC.</li>
-                    <li><strong>Paso 2:</strong> Busca una red llamada <strong>OBDII</strong> o <strong>WiFi_OBD</strong> y conéctate a ella.</li>
-                    <li><strong>Paso 3:</strong> Vuelve aquí y pulsa "Conectar por Wi-Fi".</li>
-                  </ol>
-                  <p className="note">Dirección estándar: 192.168.0.10, Puerto: 35000</p>
-                </>
-              ) : (
-                <>
-                  <h3>Instrucciones Bluetooth</h3>
-                  <ol className="step-list">
-                    <li><strong>Paso 1:</strong> Ve a Ajustes de Windows → Bluetooth → Añadir dispositivo.</li>
-                    <li><strong>Paso 2:</strong> Busca un dispositivo llamado <strong>OBDII</strong> o <strong>CARS</strong> (no suele poner ELM327). Si pide PIN, es <code>1234</code> o <code>0000</code>.</li>
-                    <li><strong>Paso 3:</strong> Vuelve aquí y pulsa "Conectar por Bluetooth".</li>
-                  </ol>
-                  <div className="tip-box">
-                    <strong>Tip Windows 11:</strong> Si no lo encuentra, ve a <em>Configuración → Bluetooth → Dispositivos</em> y cambia "Detección de dispositivos Bluetooth" de <strong>Predeterminado</strong> a <strong>Avanzado</strong>.
-                  </div>
-                </>
-              )}
+              <h3>Instrucciones Bluetooth</h3>
+              <ol className="step-list">
+                <li><strong>Paso 1:</strong> Vincula el OBDII en Ajustes → Bluetooth de Android.</li>
+                <li><strong>Paso 2:</strong> El PIN suele ser <code>1234</code> o <code>0000</code>.</li>
+                <li><strong>Paso 3:</strong> Vuelve aquí y pulsa "Conectar por Bluetooth".</li>
+              </ol>
             </div>
           </div>
         )}
       </main>
 
-      {/* Navigation Bar */}
       <nav className="app-nav">
-        <button 
-          onClick={() => setActiveTab('dashboard')}
-          className={`nav-item ${activeTab === 'dashboard' ? 'nav-active' : ''}`}
-        >
-          <Gauge size={24} />
+        <button onClick={() => setActiveTab('dashboard')} className={`nav-item ${activeTab === 'dashboard' ? 'nav-active' : ''}`}>
+          <Gauge size={22} />
           <span className="nav-label">PANEL</span>
         </button>
-        
-        <button 
-          onClick={() => setActiveTab('pids')}
-          className={`nav-item ${activeTab === 'pids' ? 'nav-active' : ''}`}
-        >
-          <Search size={24} />
+        <button onClick={() => setActiveTab('dpf')} className={`nav-item ${activeTab === 'dpf' ? 'nav-active' : ''}`}>
+          <BarChart3 size={22} />
+          <span className="nav-label">DPF</span>
+        </button>
+        <button onClick={() => setActiveTab('pids')} className={`nav-item ${activeTab === 'pids' ? 'nav-active' : ''}`}>
+          <Search size={22} />
           <span className="nav-label">PIDs</span>
         </button>
-
-        <button 
-          className={`nav-item ${activeTab === 'settings' ? 'nav-active' : ''}`}
-          onClick={() => setActiveTab('settings')}
-        >
-          <Settings size={24} />
+        <button onClick={() => setActiveTab('settings')} className={`nav-item ${activeTab === 'settings' ? 'nav-active' : ''}`}>
+          <Settings size={22} />
           <span className="nav-label">AJUSTES</span>
         </button>
       </nav>

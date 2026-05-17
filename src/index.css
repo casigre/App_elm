@@ -367,6 +367,61 @@
   letter-spacing: 0.05em;
 }
 
+.dpf-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.dpf-page .dpf-chart-card {
+  min-height: auto;
+}
+
+.dpf-page-info {
+  padding: 1.25rem;
+}
+
+.dpf-page-info h3 {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+}
+
+.dpf-legend {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 0.75rem 0;
+  padding: 0;
+}
+
+.dpf-legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.brand-reset {
+  font-size: 0.65rem;
+  color: var(--accent-red);
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
 .gauge-card {
   padding: 1.25rem;
   display: flex;
