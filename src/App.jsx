@@ -127,7 +127,7 @@ const App = () => {
         {activeTab === 'dpf' && (
           <div className="dpf-page">
             <DpfChart
-              rpm={data['222024']}
+              rpm={data['22210E']}
               diffPressure={data['222542']}
             />
             <div className="dpf-page-info glass-card">
