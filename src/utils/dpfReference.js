@@ -1,8 +1,8 @@
 const DPF_REFERENCE = [
-  { rpm: 800,  limpio: 6,  medio: 15, sucio: 30 },
+  { rpm: 800,  limpio: 6,   medio: 14, sucio: 30 },
   { rpm: 1500, limpio: 12.5, medio: 25, sucio: 50 },
-  { rpm: 2500, limpio: 22.5, medio: 40, sucio: 80 },
-  { rpm: 3500, limpio: 35,  medio: 60, sucio: 105 },
+  { rpm: 2500, limpio: 20,  medio: 40, sucio: 70 },
+  { rpm: 3500, limpio: 32.5, medio: 55, sucio: 100 },
 ];
 
 function interpolate(rpm, keyA, keyB) {
