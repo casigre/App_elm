@@ -49,16 +49,27 @@ class ObdService {
 
   async connect() {
     if (this.isConnected) return true;
+    if (this.isConnecting) {
+      this.setStatus("Ya hay una conexión en curso...");
+      return false;
+    }
     
     try {
       this.isConnecting = true;
       
       if (this.isCapacitor) {
         // --- MOBILE (Capacitor) FLOW ---
-        // 1. Try BLE (Bluetooth Low Energy)
+        // 1. Try BLE (Bluetooth Low Energy) with 10s timeout
         this.setStatus("Inicializando Bluetooth LE...");
+        let bleSuccess = false;
         try {
-          await BleClient.initialize();
+          const bleTimeout = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('BLE connection timeout')), 10000)
+          );
+
+          await Promise.race([
+            (async () => {
+              await BleClient.initialize();
           
           this.setStatus("Buscando dispositivos BLE...");
           // This will open a native picker in Android
@@ -146,19 +157,40 @@ class ObdService {
               this.isConnected = true;
               this.isConnecting = false;
               this.setStatus("Conexión establecida correctamente (BLE).");
-              return true;
+              bleSuccess = true;
             }
           }
-        } catch (bleErr) {
-          console.warn("BLE no disponible o error:", bleErr);
-        }
+        })(),
+        bleTimeout
+      ]);
+    } catch (bleErr) {
+      console.warn("BLE no disponible o timeout:", bleErr);
+      if (this.bleDeviceId) {
+        try { await BleClient.stopNotifications(this.bleDeviceId, this.activeServiceUuid, this.bleNotifyCharUuid); } catch (e) {}
+        try { await BleClient.disconnect(this.bleDeviceId); } catch (e) {}
+      }
+      this.bleDeviceId = null;
+      this.activeServiceUuid = null;
+      this.activeCharUuid = null;
+      this.bleNotifyCharUuid = null;
+      this.isConnecting = false;
+    }
 
-        // 2. Try Bluetooth Classic (SPP) - Most common for ELM327
-        this.setStatus("Buscando dispositivos Bluetooth Clásicos (vinculados)...");
+    if (bleSuccess) return true;
+
+    // 2. Try Bluetooth Classic (SPP) - Most common for ELM327
+    this.isConnecting = true;
+    this.setStatus("Buscando dispositivos Bluetooth Clásicos (vinculados)...");
         return new Promise((resolve) => {
+          const classicTimeout = setTimeout(() => {
+            this.setStatus("Timeout. ELM327 no responde. ¿Otra app conectada?");
+            this.isConnecting = false;
+            resolve(false);
+          }, 15000);
+
           BluetoothSerial.list().then(async (devices) => {
             console.log("Dispositivos vinculados:", devices);
-            // Search by Name or the specific ID (MAC) from the user's image
+            // Search by Name
              const obd = devices.find(d => {
               const name = (d.name || "").toUpperCase();
               return name.includes('OBD') || 
@@ -172,23 +204,27 @@ class ObdService {
               this.setStatus(`Conectando a ${obd.name || obd.id}...`);
               this.connectionType = 'classic';
               BluetoothSerial.connect(obd.id).subscribe(async () => {
+                clearTimeout(classicTimeout);
                 this.setStatus("Conectado vía Bluetooth Serial. Inicializando...");
                 this.isConnected = true;
                 this.isConnecting = false;
-                this.bleDeviceId = null; // Mark as Classic
+                this.bleDeviceId = null;
                 await this.initElm();
                 resolve(true);
               }, (err) => {
+                clearTimeout(classicTimeout);
                 this.setStatus(`Error al conectar a ${obd.name}: ${err}`);
                 this.isConnecting = false;
                 resolve(false);
               });
             } else {
+              clearTimeout(classicTimeout);
               this.setStatus("No se encontró OBDII en vinculados. Por favor, realiza la vinculación manual en los ajustes de Android.");
               this.isConnecting = false;
               resolve(false);
             }
           }).catch(err => {
+            clearTimeout(classicTimeout);
             this.setStatus(`Error listando: ${err}`);
             this.isConnecting = false;
             resolve(false);

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Activity, AlertTriangle, Thermometer, Wind } from 'lucide-react';
+import DpfChart from './DpfChart';
 
 const GaugeCard = ({ title, value, unit, color, icon: Icon, min, max }) => {
   const numericValue = parseFloat(value) || 0;
@@ -77,6 +78,12 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard-grid">
+      <div className="dpf-chart-wrapper">
+        <DpfChart
+          rpm={data['22210E']}
+          diffPressure={data['222542']}
+        />
+      </div>
       <AnimatePresence>
         {activePids.map((pid, idx) => (
           <motion.div
