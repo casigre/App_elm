@@ -3,16 +3,17 @@ Masa de Hollín (FAP),HOLLIN,22242C,(A*256+B)/100,0,100,g,7E0,Renault K9
 Presión Diferencial FAP,DPF_PRES,222542,(A*256+B)-32768,-100,500,mbar,7E0,Renault K9
 Temperatura Entrada FAP,T_FAP_IN,222442,(A*256+B-2730)/10,-40,800,°C,7E0,Renault K9
 Temperatura Salida FAP,T_FAP_OUT,222553,(A*256+B-2730)/10,-40,800,°C,7E0,Renault K9
-Kilómetros desde última Regeneración,KM_REGEN,2224A9,(A*65536+B*256+C),0,10000,km,7E0,Renault K9
-Estado de Regeneración,REGEN_ST,22246D,{A:0},0,1,,7E0,Renault K9
+Kilómetros desde última Regeneración,KM_REGEN,222554,(A*256+B+C),0,10000,KM,7E0,Renault K9
+Estado de Regeneración,REGEN_STAD,222056,(A&15),0,3,,7E0,Renault K9
 Temperatura de Agua,T_AGUA,222001,(A*256+B-2730)/10,-40,150,°C,7E0,Renault K9
-RPM Motor,RPM,22210E,(A*16777216+B*65536+C*256+D)/1000000,0,5000,RPM,7E0,Renault K9
+RPM Motor,RPM,222024,(A*256+B)/4,0,6000,RPM,7E0,Renault K9
 Voltaje de Batería,VOLT,222005,(A*256+B)/100,0,18,V,7E0,Renault K9
 Presión Turbo,PRES_TURBO,222401,(A*256+B),0,3000,mbar,7E0,Renault K9
 Caudal de Aire,AIRE,2224F2,(A*256+B)/10,0,500,kg/h,7E0,Renault K9
 Presión de Rail,PRES_RAIL,222801,(A*256+B),0,2000,bar,7E0,Renault K9
 Dilución de Aceite,DILUCION,22252A,(A*256+B)/100,0,20,%,7E0,Renault K9
 Contador Fallos Regeneración,FALLO_REGEN,222485,A,0,255,,7E0,Renault K9
+Permiso Regeneración,PERM_REG,222166,A,0,2,,7E0,Renault K9
 Hollín FAP (%),FAP_SOOT,2102FF,A/255*100,0,100,%,7E0,Citroën
 Regeneración Activa,FAP_REGEN,2102FE,{A:0},0,1,,7E0,Citroën
 Temperatura FAP (°C),FAP_TEMP,210261,(A*256+B)-400,0,900,°C,7E0,Citroën
