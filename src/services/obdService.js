@@ -156,6 +156,7 @@ class ObdService {
               await this.initElm();
               this.isConnected = true;
               this.isConnecting = false;
+              this.restartPolling();
               this.setStatus("Conexión establecida correctamente (BLE).");
               bleSuccess = true;
             }
@@ -208,6 +209,7 @@ class ObdService {
                 this.setStatus("Conectado vía Bluetooth Serial. Inicializando...");
                 this.isConnected = true;
                 this.isConnecting = false;
+                this.restartPolling();
                 this.bleDeviceId = null;
                 await this.initElm();
                 resolve(true);
@@ -253,6 +255,7 @@ class ObdService {
         this.setStatus("Conectado vía Serial.");
         this.isConnected = true;
         this.isConnecting = false;
+        this.restartPolling();
         return true;
       }
     } catch (err) {
@@ -401,8 +404,6 @@ class ObdService {
     if (this.pollingTimeout) clearTimeout(this.pollingTimeout);
 
     const cycle = async () => {
-      if (!this.isConnected && !this.isPollingCycleActive) return;
-
       if (this.isConnecting) {
         this.pollingTimeout = setTimeout(cycle, 2000);
         return;
@@ -465,6 +466,12 @@ class ObdService {
     const resp = await this.readUntil('>');
     // Clean echoing and prompts
     return resp.replace(pidCode, '').replace(/>/g, '').trim();
+  }
+
+  restartPolling() {
+    if (this.onDataCallback && !this.pollingTimeout) {
+      this.startPolling(this.onDataCallback);
+    }
   }
 
   async disconnect() {
