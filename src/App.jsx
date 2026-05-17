@@ -15,17 +15,9 @@ const App = () => {
   const [wifiIp, setWifiIp] = useState('192.168.0.10');
   const [wifiPort, setWifiPort] = useState('35000');
   const [data, setData] = useState({});
+  let wakeLock = null;
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setIsConnected(obdService.isConnected);
-      setIsConnecting(obdService.isConnecting);
-      setStatusMsg(obdService.statusMessage);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
+  const startPollingFromStorage = () => {
     let pids = [];
     try {
       const saved = localStorage.getItem('selectedPids');
@@ -38,8 +30,46 @@ const App = () => {
         setData(prev => ({ ...prev, [pidCode]: value }));
       });
     }
+  };
 
-    return () => obdService.stopPolling();
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setIsConnected(obdService.isConnected);
+      setIsConnecting(obdService.isConnecting);
+      setStatusMsg(obdService.statusMessage);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    startPollingFromStorage();
+
+    const onPidChange = () => {
+      obdService.stopPolling();
+      startPollingFromStorage();
+    };
+    window.addEventListener('pidChange', onPidChange);
+    return () => {
+      obdService.stopPolling();
+      window.removeEventListener('pidChange', onPidChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    const requestWakeLock = async () => {
+      try {
+        wakeLock = await navigator.wakeLock.request('screen');
+      } catch (e) {}
+    };
+    requestWakeLock();
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') requestWakeLock();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      if (wakeLock) wakeLock.release().catch(() => {});
+    };
   }, []);
 
   const handleConnect = async () => {
@@ -97,7 +127,7 @@ const App = () => {
         {activeTab === 'dpf' && (
           <div className="dpf-page">
             <DpfChart
-              rpm={data['22210E']}
+              rpm={data['222024']}
               diffPressure={data['222542']}
             />
             <div className="dpf-page-info glass-card">

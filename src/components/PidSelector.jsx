@@ -18,6 +18,12 @@ const PidSelector = () => {
     try { localStorage.setItem('deletedPids', JSON.stringify(list)); } catch (e) {}
   };
 
+  const saveSelected = (list) => {
+    setSelectedPids(list);
+    try { localStorage.setItem('selectedPids', JSON.stringify(list)); } catch (e) {}
+    window.dispatchEvent(new Event('pidChange'));
+  };
+
   useEffect(() => {
     let storedCustom = [];
     let storedDeleted = [];
@@ -49,15 +55,22 @@ const PidSelector = () => {
         try {
           const saved = localStorage.getItem('selectedPids');
           if (saved) {
-            setSelectedPids(JSON.parse(saved));
+            const parsed = JSON.parse(saved);
+            const validCodes = new Set([...allPidsFromCsv.map(p => p.ModeAndPID), ...storedCustom.map(p => p.ModeAndPID)]);
+            const allValid = parsed.every(p => validCodes.has(p.ModeAndPID));
+            if (allValid && parsed.length > 0) {
+              setSelectedPids(parsed);
+            } else {
+              const defaults = allPidsFromCsv.filter(p => p.Brand === defaultBrand);
+              saveSelected(defaults);
+            }
           } else {
             const defaults = allPidsFromCsv.filter(p => p.Brand === defaultBrand);
-            setSelectedPids(defaults);
-            localStorage.setItem('selectedPids', JSON.stringify(defaults));
+            saveSelected(defaults);
           }
         } catch (e) {
           const defaults = allPidsFromCsv.filter(p => p.Brand === defaultBrand);
-          setSelectedPids(defaults);
+          saveSelected(defaults);
         }
         setLoading(false);
       });
@@ -69,8 +82,7 @@ const PidSelector = () => {
     setSelectedBrand(brand);
     const brandPids = [...customPids.filter(p => p.Brand === brand || !p.Brand), ...pids.filter(p => p.Brand === brand && !deletedPids.includes(p.ModeAndPID))];
     if (brandPids.length > 0) {
-      setSelectedPids(brandPids);
-      try { localStorage.setItem('selectedPids', JSON.stringify(brandPids)); } catch (e) {}
+      saveSelected(brandPids);
     }
   };
 
@@ -82,8 +94,7 @@ const PidSelector = () => {
     } else {
       newSelected = [...selectedPids, pid];
     }
-    setSelectedPids(newSelected);
-    try { localStorage.setItem('selectedPids', JSON.stringify(newSelected)); } catch (e) {}
+    saveSelected(newSelected);
   };
 
   const startEditing = (e, pid) => {
@@ -109,8 +120,7 @@ const PidSelector = () => {
     try { localStorage.setItem('customPids', JSON.stringify(updated)); } catch (e) {}
 
     const updatedSelected = selectedPids.map(p => (p.ModeAndPID === newPid.ModeAndPID || (editingPid && p.ModeAndPID === editingPid.ModeAndPID)) ? newPid : p);
-    setSelectedPids(updatedSelected);
-    try { localStorage.setItem('selectedPids', JSON.stringify(updatedSelected)); } catch (e) {}
+    saveSelected(updatedSelected);
 
     setShowForm(false);
   };
@@ -128,8 +138,7 @@ const PidSelector = () => {
     }
 
     const updatedSelected = selectedPids.filter(p => p.ModeAndPID !== pidCode);
-    setSelectedPids(updatedSelected);
-    try { localStorage.setItem('selectedPids', JSON.stringify(updatedSelected)); } catch (e) {}
+    saveSelected(updatedSelected);
   };
 
   const allPids = [...customPids, ...pids.filter(p => !deletedPids.includes(p.ModeAndPID) && !customPids.some(c => c.ModeAndPID === p.ModeAndPID))];
@@ -163,7 +172,7 @@ const PidSelector = () => {
           setCustomPids([]);
           try { localStorage.setItem('customPids', JSON.stringify([])); } catch (e) {}
           setSelectedPids(pids.filter(p => p.Brand === 'Renault K9'));
-          try { localStorage.setItem('selectedPids', JSON.stringify(pids.filter(p => p.Brand === 'Renault K9'))); } catch (e) {}
+          saveSelected(pids.filter(p => p.Brand === 'Renault K9'));
         }}>⚠ reset</span>
       </div>
 
