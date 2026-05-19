@@ -16,7 +16,23 @@ const App = () => {
   const [wifiIp, setWifiIp] = useState('192.168.0.10');
   const [wifiPort, setWifiPort] = useState('35000');
   const [data, setData] = useState({});
+  const [dpfRpmPid, setDpfRpmPid] = useState(() => {
+    try { return localStorage.getItem('dpfRpmPid') || '22210E'; } catch (e) { return '22210E'; }
+  });
+  const [dpfDiffPid, setDpfDiffPid] = useState(() => {
+    try { return localStorage.getItem('dpfDiffPid') || '222542'; } catch (e) { return '222542'; }
+  });
   let wakeLock = null;
+
+  const getAvailablePids = () => {
+    try {
+      const saved = localStorage.getItem('selectedPids');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) { return []; }
+  };
+
+  const rpmPids = getAvailablePids().filter(p => (p.Units === 'RPM' || p.Units === 'rpm'));
+  const pressurePids = getAvailablePids().filter(p => (p.Units === 'mbar' || p.Units === 'bar' || p.Units === 'mBar'));
 
   const startPollingFromStorage = () => {
     let pids = [];
@@ -127,9 +143,29 @@ const App = () => {
         {activeTab === 'dashboard' && <Dashboard data={data} />}
         {activeTab === 'dpf' && (
           <div className="dpf-page">
+            <div className="dpf-pid-selectors glass-card">
+              <div className="dpf-selector-item">
+                <label>RPM</label>
+                <select value={dpfRpmPid} onChange={(e) => { setDpfRpmPid(e.target.value); try { localStorage.setItem('dpfRpmPid', e.target.value); } catch(ex) {} }}>
+                  {rpmPids.map(p => (
+                    <option key={p.ModeAndPID} value={p.ModeAndPID}>{p.name} ({p.ModeAndPID})</option>
+                  ))}
+                  {rpmPids.length === 0 && <option value="22210E">RPM Motor (22210E)</option>}
+                </select>
+              </div>
+              <div className="dpf-selector-item">
+                <label>Presión</label>
+                <select value={dpfDiffPid} onChange={(e) => { setDpfDiffPid(e.target.value); try { localStorage.setItem('dpfDiffPid', e.target.value); } catch(ex) {} }}>
+                  {pressurePids.map(p => (
+                    <option key={p.ModeAndPID} value={p.ModeAndPID}>{p.name} ({p.ModeAndPID})</option>
+                  ))}
+                  {pressurePids.length === 0 && <option value="222542">Presión Dif. FAP (222542)</option>}
+                </select>
+              </div>
+            </div>
             <DpfChart
-              rpm={data['22210E']}
-              diffPressure={data['222542']}
+              rpm={data[dpfRpmPid]}
+              diffPressure={data[dpfDiffPid]}
             />
             <div className="dpf-page-info glass-card">
               <h3>Interpretación del gráfico</h3>
@@ -139,7 +175,6 @@ const App = () => {
                 <li><span className="legend-dot" style={{background:'#facc15'}}></span> Amarillo: Capacidad media</li>
                 <li><span className="legend-dot" style={{background:'#ef4444'}}></span> Rojo: Necesita regeneración</li>
               </ul>
-              <p className="text-dim">Requiere los PIDs <code>22210E</code> (RPM) y <code>222542</code> (Presión Diferencial FAP) activos.</p>
             </div>
             <DpfSettings />
           </div>

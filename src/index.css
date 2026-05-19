@@ -373,6 +373,47 @@
   gap: 1rem;
 }
 
+.dpf-pid-selectors {
+  padding: 0.75rem 1rem;
+  display: flex;
+  gap: 1rem;
+}
+
+.dpf-selector-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  flex: 1;
+}
+
+.dpf-selector-item label {
+  font-size: 0.6rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.dpf-selector-item select {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border-glass);
+  border-radius: 6px;
+  color: var(--text-primary);
+  padding: 0.4rem 0.5rem;
+  font-size: 0.75rem;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+}
+
+.dpf-selector-item select:focus {
+  border-color: var(--accent-cyan);
+}
+
+.dpf-selector-item select option {
+  background: #1a1a2e;
+  color: var(--text-primary);
+}
+
 .dpf-page .dpf-chart-card {
   min-height: auto;
 }

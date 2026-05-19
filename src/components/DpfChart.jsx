@@ -2,7 +2,7 @@ import React from 'react';
 import { getDpfClogging, getDpfCurves, getDpfBounds } from '../utils/dpfReference';
 
 const DpfChart = ({ rpm, diffPressure }) => {
-  const { percentage, color, label, zone } = getDpfClogging(rpm, diffPressure);
+  const { percentage, color, label } = getDpfClogging(rpm, diffPressure);
   const curves = getDpfCurves();
   const { rpmMin, rpmMax, presMax } = getDpfBounds();
 
@@ -15,10 +15,11 @@ const DpfChart = ({ rpm, diffPressure }) => {
   const x = (r) => pad.left + ((r - rpmMin) / (rpmMax - rpmMin)) * cw;
   const y = (p) => pad.top + ch - (p / presMax) * ch;
 
-  const buildPath = (key) => {
-    const pts = curves.map((c) => `${x(c.rpm)},${y(c[key])}`);
-    return `M${pts.join(' L')} L${x(curves[curves.length - 1].rpm)},${y(0)} L${x(curves[0].rpm)},${y(0)} Z`;
-  };
+  const curvePoints = (key) =>
+    curves.map((c) => `${x(c.rpm)},${y(c[key])}`).join(' ');
+
+  const reversedCurvePoints = (key) =>
+    [...curves].reverse().map((c) => `${x(c.rpm)},${y(c[key])}`).join(' ');
 
   const r = parseFloat(rpm);
   const p = parseFloat(diffPressure);
@@ -35,12 +36,20 @@ const DpfChart = ({ rpm, diffPressure }) => {
 
       <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid meet">
         <rect x="0" y="0" width={w} height={h} fill="rgba(255,255,255,0.02)" rx="8" />
-        <polygon points={buildPath('sucio')} fill="rgba(239,68,68,0.22)" />
-        <polygon points={buildPath('limpio')} fill="rgba(34,197,94,0.22)" />
-        <path
-          d={`M${buildPath('sucio').replace('Z', '')} M${buildPath('limpio').split('Z')[0]} Z`}
-          fill="rgba(250,204,21,0.18)"
-          fillRule="evenodd"
+
+        <polygon
+          points={`${curvePoints('limpio')} ${x(rpmMax)},${y(0)} ${x(rpmMin)},${y(0)}`}
+          fill="rgba(34,197,94,0.25)"
+        />
+
+        <polygon
+          points={`${curvePoints('limpio')} ${reversedCurvePoints('sucio')}`}
+          fill="rgba(250,204,21,0.20)"
+        />
+
+        <polygon
+          points={`${curvePoints('sucio')} ${x(rpmMax)},${y(presMax)} ${x(rpmMin)},${y(presMax)}`}
+          fill="rgba(239,68,68,0.22)"
         />
 
         <line x1={x(rpmMin)} y1={y(0)} x2={x(rpmMax)} y2={y(0)} stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
@@ -59,8 +68,8 @@ const DpfChart = ({ rpm, diffPressure }) => {
 
         {hasData && (
           <>
-            <line x1={pad.left} y1={y(p)} x2={x(rpmMax) + pad.right} y2={y(p)} stroke={color} strokeWidth="0.5" strokeDasharray="3,3" opacity="0.5" />
-            <line x1={x(r)} y1={y(p)} x2={x(r)} y2={y(0)} stroke={color} strokeWidth="0.5" strokeDasharray="3,3" opacity="0.5" />
+            <line x1={pad.left} y1={y(p)} x2={x(rpmMax) + pad.right} y2={y(p)} stroke={color} strokeWidth="0.5" strokeDasharray="3,3" opacity="0.6" />
+            <line x1={x(r)} y1={y(p)} x2={x(r)} y2={y(0)} stroke={color} strokeWidth="0.5" strokeDasharray="3,3" opacity="0.6" />
             <circle cx={x(r)} cy={y(p)} r="5" fill={color} stroke="#0f172a" strokeWidth="2" />
             <text x={x(r)} y={y(p) - 8} textAnchor="middle" fill={color} fontSize="10" fontWeight="bold" fontFamily="inherit">
               {Math.round(p)} mbar
