@@ -17,7 +17,7 @@ const App = () => {
   const [wifiPort, setWifiPort] = useState('35000');
   const [data, setData] = useState({});
   const [dpfRpmPid, setDpfRpmPid] = useState(() => {
-    try { return localStorage.getItem('dpfRpmPid') || '22210E'; } catch (e) { return '22210E'; }
+    try { return localStorage.getItem('dpfRpmPid') || '010C'; } catch (e) { return '010C'; }
   });
   const [dpfDiffPid, setDpfDiffPid] = useState(() => {
     try { return localStorage.getItem('dpfDiffPid') || '222542'; } catch (e) { return '222542'; }
@@ -150,7 +150,7 @@ const App = () => {
                   {rpmPids.map(p => (
                     <option key={p.ModeAndPID} value={p.ModeAndPID}>{p.name} ({p.ModeAndPID})</option>
                   ))}
-                  {rpmPids.length === 0 && <option value="22210E">RPM Motor (22210E)</option>}
+                  {rpmPids.length === 0 && <option value="010C">RPM (010C)</option>}
                 </select>
               </div>
               <div className="dpf-selector-item">
