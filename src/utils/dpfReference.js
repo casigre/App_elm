@@ -5,7 +5,44 @@ const DPF_REFERENCE = [
   { rpm: 3500, limpio: 40, medio: 75, sucio: 130 },
 ];
 
+export function getDefaultClean() {
+  return { 800: 10, 1500: 15, 2500: 25, 3500: 40 };
+}
+
+export function loadCustomClean() {
+  try {
+    const raw = localStorage.getItem('dpfCleanValues');
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+export function saveCustomClean(values) {
+  try {
+    if (values) {
+      localStorage.setItem('dpfCleanValues', JSON.stringify(values));
+    } else {
+      localStorage.removeItem('dpfCleanValues');
+    }
+  } catch (e) {}
+}
+
+function applyCleanOverrides() {
+  const custom = loadCustomClean();
+  if (!custom) return;
+  for (const ref of DPF_REFERENCE) {
+    if (custom[ref.rpm] !== undefined) {
+      const newClean = Number(custom[ref.rpm]);
+      ref.limpio = newClean;
+      ref.medio = Math.round(newClean * 1.9);
+      ref.sucio = Math.round(newClean * 3.5);
+    }
+  }
+}
+
 function interpolate(rpm, keyA, keyB) {
+  applyCleanOverrides();
   if (rpm <= DPF_REFERENCE[0].rpm) return DPF_REFERENCE[0];
   if (rpm >= DPF_REFERENCE[DPF_REFERENCE.length - 1].rpm)
     return DPF_REFERENCE[DPF_REFERENCE.length - 1];
@@ -60,13 +97,15 @@ export function getDpfClogging(rpm, pressure) {
 }
 
 export function getDpfCurves() {
+  applyCleanOverrides();
   return DPF_REFERENCE;
 }
 
 export function getDpfBounds() {
+  applyCleanOverrides();
   return {
     rpmMin: DPF_REFERENCE[0].rpm,
     rpmMax: DPF_REFERENCE[DPF_REFERENCE.length - 1].rpm,
-    presMax: DPF_REFERENCE[DPF_REFERENCE.length - 1].sucio + 15,
+    presMax: DPF_REFERENCE[DPF_REFERENCE.length - 1].sucio + 20,
   };
 }

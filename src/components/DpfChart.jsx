@@ -34,24 +34,25 @@ const DpfChart = ({ rpm, diffPressure }) => {
       </div>
 
       <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid meet">
-        <polygon points={buildPath('sucio')} fill="rgba(239,68,68,0.15)" />
-        <path d={buildPath('limpio')} fill="rgba(34,197,94,0.18)" />
+        <rect x="0" y="0" width={w} height={h} fill="rgba(255,255,255,0.02)" rx="8" />
+        <polygon points={buildPath('sucio')} fill="rgba(239,68,68,0.22)" />
+        <polygon points={buildPath('limpio')} fill="rgba(34,197,94,0.22)" />
         <path
           d={`M${buildPath('sucio').replace('Z', '')} M${buildPath('limpio').split('Z')[0]} Z`}
-          fill="rgba(250,204,21,0.15)"
+          fill="rgba(250,204,21,0.18)"
           fillRule="evenodd"
         />
 
-        <line x1={x(rpmMin)} y1={y(0)} x2={x(rpmMax)} y2={y(0)} stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
+        <line x1={x(rpmMin)} y1={y(0)} x2={x(rpmMax)} y2={y(0)} stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
 
         {curves.map((c, i) => (
-          <text key={i} x={x(c.rpm)} y={y(0) + 16} textAnchor="middle" fill="#64748b" fontSize="9" fontFamily="inherit">
+          <text key={i} x={x(c.rpm)} y={y(0) + 16} textAnchor="middle" fill="#94a3b8" fontSize="9" fontFamily="inherit">
             {c.rpm}
           </text>
         ))}
 
-        {[0, 30, 60, 90, 120].map((val) => (
-          <text key={val} x={pad.left - 4} y={y(val) + 3} textAnchor="end" fill="#475569" fontSize="9" fontFamily="inherit">
+        {[0, 30, 60, 90, 120, 150].map((val) => (
+          <text key={val} x={pad.left - 4} y={y(val) + 3} textAnchor="end" fill="#94a3b8" fontSize="9" fontFamily="inherit">
             {val}
           </text>
         ))}

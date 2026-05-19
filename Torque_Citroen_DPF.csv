@@ -1,0 +1,6 @@
+name,ShortName,ModeAndPID,Equation,Min Value,Max Value,Units,Header
+[CIT] Hollín FAP (%),CIT_FAP_SOOT,2102FF,A/255*100,0,100,%,7E0
+[CIT] Regeneración Activa,CIT_FAP_REGEN,2102FE,{A:0},0,1,,7E0
+[CIT] Temperatura FAP (°C),CIT_FAP_TEMP,210261,(A*256+B)-400,0,900,°C,7E0
+[CIT] Presión Diferencial (mbar),CIT_FAP_PRESS,210262,(A*256+B)/10,0,500,mbar,7E0
+[CIT] Km última Regen.,CIT_KM_REGEN,21026D,A*256+B,0,3000,km,7E0

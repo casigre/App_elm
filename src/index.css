@@ -422,6 +422,91 @@
   white-space: nowrap;
 }
 
+.dpf-settings {
+  padding: 1.25rem;
+}
+
+.dpf-settings-header h3 {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+}
+
+.dpf-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.dpf-setting-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.dpf-setting-item label {
+  font-size: 0.6rem;
+  color: var(--text-secondary);
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.dpf-setting-item input {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border-glass);
+  border-radius: 6px;
+  color: var(--text-primary);
+  padding: 0.35rem;
+  font-size: 0.85rem;
+  font-family: 'Orbitron', sans-serif;
+  text-align: center;
+  width: 100%;
+  outline: none;
+}
+
+.dpf-setting-item input:focus {
+  border-color: var(--accent-cyan);
+}
+
+.dpf-setting-unit {
+  font-size: 0.55rem;
+  color: #475569;
+  text-align: center;
+}
+
+.dpf-settings-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.dpf-settings-actions .save-btn,
+.dpf-settings-actions .reset-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.5rem;
+  border-radius: 8px;
+  border: none;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.dpf-settings-actions .save-btn {
+  background: rgba(0,242,255,0.15);
+  color: var(--accent-cyan);
+}
+
+.dpf-settings-actions .reset-btn {
+  background: rgba(255,255,255,0.05);
+  color: var(--text-secondary);
+}
+
 .gauge-card {
   padding: 1.25rem;
   display: flex;

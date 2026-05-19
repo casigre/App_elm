@@ -3,6 +3,7 @@ import { Settings, Zap, Gauge, History, Search, Power, BarChart3 } from 'lucide-
 import { App as CapApp } from '@capacitor/app';
 import Dashboard from './components/Dashboard';
 import DpfChart from './components/DpfChart';
+import DpfSettings from './components/DpfSettings';
 import PidSelector from './components/PidSelector';
 import obdService from './services/obdService';
 
@@ -112,13 +113,13 @@ const App = () => {
           ELM<span className="logo-accent">327</span>
         </div>
         <div className="header-actions">
-          <button className="exit-btn" onClick={handleExit} title="Cerrar app">
-            <Power size={18} />
-          </button>
           <div className={`status-badge ${isConnected ? 'status-connected' : 'status-disconnected'}`}>
             <Zap size={14} fill={isConnected ? "currentColor" : "none"} />
             {isConnecting ? 'CONECTANDO...' : (isConnected ? 'CONECTADO (REAL)' : 'MODO SIMULACIÓN')}
           </div>
+          <button className="exit-btn" onClick={handleExit} title="Cerrar app">
+            <Power size={18} />
+          </button>
         </div>
       </header>
 
@@ -140,6 +141,7 @@ const App = () => {
               </ul>
               <p className="text-dim">Requiere los PIDs <code>22210E</code> (RPM) y <code>222542</code> (Presión Diferencial FAP) activos.</p>
             </div>
+            <DpfSettings />
           </div>
         )}
         {activeTab === 'pids' && <PidSelector />}

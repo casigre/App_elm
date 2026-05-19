@@ -19,7 +19,7 @@ const OBD_CHARACTERISTIC_UUIDS = [
 class ObdService {
   constructor() {
     this.selectedPids = [];
-    this.pollingInterval = null;
+    this.pollingTimeout = null;
     this.onDataCallback = null;
     this.port = null;
     this.reader = null;
@@ -35,6 +35,7 @@ class ObdService {
     this.bleDataResolver = null;
     this.bleDataTarget = '';
     this.bleTimeoutId = null;
+    this.bleConsecutiveTimeouts = 0;
     this.statusMessage = '';
     this.connectionType = 'serial';
     this.currentHeader = null;
@@ -151,6 +152,11 @@ class ObdService {
                   }
                 }
               );
+              BleClient.onDisconnected(this.bleDeviceId).then(() => {
+                this.isConnected = false;
+                this.setStatus("BLE desconectado");
+                this.disconnect();
+              }).catch(() => {});
               this.connectionType = 'ble';
               this.setStatus("Conectado vía BLE. Inicializando ELM327...");
               await this.initElm();
@@ -207,11 +213,11 @@ class ObdService {
               BluetoothSerial.connect(obd.id).subscribe(async () => {
                 clearTimeout(classicTimeout);
                 this.setStatus("Conectado vía Bluetooth Serial. Inicializando...");
+                this.bleDeviceId = null;
+                await this.initElm();
                 this.isConnected = true;
                 this.isConnecting = false;
                 this.restartPolling();
-                this.bleDeviceId = null;
-                await this.initElm();
                 resolve(true);
               }, (err) => {
                 clearTimeout(classicTimeout);
@@ -305,6 +311,14 @@ class ObdService {
       }
     }
     this.setStatus('ELM327 inicializado correctamente');
+
+    this.setStatus('Verificando conexión...');
+    await this.write('ATRV');
+    const verify = await this.readUntil('>');
+    if (!verify || verify.trim() === '' || verify.includes('?') || verify.toUpperCase().includes('ERROR')) {
+      throw new Error('ELM327 no responde a ATRV - canal muerto');
+    }
+    this.setStatus(`Canal activo: ${verify.trim()}`);
   }
 
   async write(cmd) {
@@ -331,17 +345,32 @@ class ObdService {
       if (this.isCapacitor && this.connectionType === 'ble') {
         this.bleDataTarget = char;
         return new Promise((resolve, reject) => {
-          this.bleDataResolver = () => {
-            clearTimeout(this.bleTimeoutId);
-            this.bleDataResolver = null;
-            response = this.bleDataBuffer;
-            this.bleDataBuffer = '';
-            console.log(`< OBD RX FULL: ${response.trim()}`);
-            resolve(response);
+          const checkBuffer = () => {
+            if (this.bleDataBuffer.includes(char)) {
+              clearTimeout(this.bleTimeoutId);
+              this.bleDataResolver = null;
+              response = this.bleDataBuffer;
+              this.bleDataBuffer = '';
+              console.log(`< OBD RX FULL: ${response.trim()}`);
+              resolve(response);
+              return true;
+            }
+            return false;
           };
+          this.bleDataResolver = () => {
+            this.bleConsecutiveTimeouts = 0;
+            checkBuffer();
+          };
+          if (checkBuffer()) { this.bleConsecutiveTimeouts = 0; return; }
           this.bleTimeoutId = setTimeout(() => {
             this.bleDataResolver = null;
             this.bleDataBuffer = '';
+            this.bleConsecutiveTimeouts++;
+            if (this.bleConsecutiveTimeouts >= 3) {
+              this.isConnected = false;
+              this.setStatus("BLE sin respuesta. Desconectado.");
+              this.disconnect();
+            }
             reject(new Error('Timeout de lectura OBD'));
           }, 5000);
         }).catch(err => {
@@ -402,6 +431,7 @@ class ObdService {
   startPolling(callback) {
     this.onDataCallback = callback;
     if (this.pollingTimeout) clearTimeout(this.pollingTimeout);
+    let consecutiveEmpty = 0;
 
     const cycle = async () => {
       if (this.isConnecting) {
@@ -417,6 +447,8 @@ class ObdService {
         if (!grouped[header]) grouped[header] = [];
         grouped[header].push(pid);
       }
+
+      let gotRealData = false;
 
       for (const [header, pids] of Object.entries(grouped)) {
         if (!this.isConnected) {
@@ -444,6 +476,7 @@ class ObdService {
               }
               const value = this.parseResponse(rawResponse, pid.Equation, pid);
               if (this.onDataCallback) this.onDataCallback(pid.ModeAndPID, value);
+              gotRealData = true;
             } catch (err) {
               console.error(`Error polling ${pid.name}:`, err);
             }
@@ -452,6 +485,17 @@ class ObdService {
         } catch (err) {
           console.error(`Error switching to header ${header}:`, err);
         }
+      }
+
+      if (this.isConnected && !gotRealData) {
+        consecutiveEmpty++;
+        if (consecutiveEmpty >= 3) {
+          this.isConnected = false;
+          this.setStatus("Sin respuesta del ELM327 en 3 ciclos. Desconectado.");
+          consecutiveEmpty = 0;
+        }
+      } else {
+        consecutiveEmpty = 0;
       }
 
       this.isPollingCycleActive = false;
@@ -465,7 +509,7 @@ class ObdService {
     await this.write(pidCode);
     const resp = await this.readUntil('>');
     // Clean echoing and prompts
-    return resp.replace(pidCode, '').replace(/>/g, '').trim();
+    return resp.replaceAll(pidCode, '').replace(/>/g, '').trim();
   }
 
   restartPolling() {
@@ -535,7 +579,17 @@ class ObdService {
     // 19 -> 59 (Freeze Frame/Error records)
     // 21 -> 61 (Extended Renault)
     // 22 -> 62 (Extended Renault/UDDS)
-    let dataStartIndex = parts.findIndex(p => p === '62' || p === '41' || p === '61' || p === '59');
+    const RESPONSE_MODES = ['62', '41', '61', '59'];
+    let dataStartIndex = -1;
+    for (let i = 0; i < parts.length; i++) {
+      if (RESPONSE_MODES.includes(parts[i])) {
+        const needed = (parts[i] === '41') ? 3 : 4;
+        if (i + needed <= parts.length) {
+          dataStartIndex = i;
+          break;
+        }
+      }
+    }
     
     if (dataStartIndex === -1) {
       return 0;
@@ -551,10 +605,10 @@ class ObdService {
     const dataStart = dataStartIndex + skipBytes; 
     const bytes = parts.slice(dataStart).map(b => parseInt(b, 16));
     
-    // 4. Map variables for equation (A, B, C, D, E, F, G, H)
+    const v = (i) => isNaN(bytes[i]) ? 0 : bytes[i];
     const vars = {
-      A: bytes[0] || 0, B: bytes[1] || 0, C: bytes[2] || 0, D: bytes[3] || 0,
-      E: bytes[4] || 0, F: bytes[5] || 0, G: bytes[6] || 0, H: bytes[7] || 0
+      A: v(0), B: v(1), C: v(2), D: v(3),
+      E: v(4), F: v(5), G: v(6), H: v(7)
     };
 
     try {
@@ -569,7 +623,7 @@ class ObdService {
       sanitizedEq = sanitizedEq.replace(/\b([A-H])\b/g, (match) => vars[match]);
       
       // Some Renault equations use & for bitwise, new Function handles it natively
-      const result = Math.abs(new Function(`return ${sanitizedEq}`)());
+      const result = new Function(`return ${sanitizedEq}`)();
       
       // 5. Format based on unit or type
       if (typeof result !== 'number' || isNaN(result)) return '--';

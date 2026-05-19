@@ -1,0 +1,1 @@
+https://github.com/casigre/App_elm/releases/download/v1.3.0/app-debug.apk
