@@ -60,7 +60,7 @@ const DpfChart = ({ rpm, diffPressure }) => {
           </text>
         ))}
 
-        {[0, 30, 60, 90, 120, 150].map((val) => (
+        {[0, 40, 80, 120, 160, 200].map((val) => (
           <text key={val} x={pad.left - 4} y={y(val) + 3} textAnchor="end" fill="#94a3b8" fontSize="9" fontFamily="inherit">
             {val}
           </text>

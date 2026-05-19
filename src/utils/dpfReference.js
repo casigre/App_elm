@@ -1,12 +1,12 @@
 const DPF_REFERENCE = [
-  { rpm: 800,  limpio: 10, medio: 20, sucio: 35 },
-  { rpm: 1500, limpio: 15, medio: 30, sucio: 55 },
-  { rpm: 2500, limpio: 25, medio: 50, sucio: 90 },
-  { rpm: 3500, limpio: 40, medio: 75, sucio: 130 },
+  { rpm: 800,  limpio: 5,  medio: 15, sucio: 40 },
+  { rpm: 1500, limpio: 10, medio: 30, sucio: 70 },
+  { rpm: 2500, limpio: 20, medio: 50, sucio: 120 },
+  { rpm: 3500, limpio: 30, medio: 80, sucio: 180 },
 ];
 
 export function getDefaultClean() {
-  return { 800: 10, 1500: 15, 2500: 25, 3500: 40 };
+  return { 800: 5, 1500: 10, 2500: 20, 3500: 30 };
 }
 
 export function loadCustomClean() {
