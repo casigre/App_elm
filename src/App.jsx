@@ -24,6 +24,12 @@ const App = () => {
     try { return localStorage.getItem('dpfDiffPid') || '222542'; } catch (e) { return '222542'; }
   });
   const [dpfMode, setDpfModeState] = useState(getDpfMode);
+  const [dpfXMode, setDpfXMode] = useState(() => {
+    try { return localStorage.getItem('dpfXMode') || 'rpm'; } catch (e) { return 'rpm'; }
+  });
+  const [dpfLoadPid, setDpfLoadPid] = useState(() => {
+    try { return localStorage.getItem('dpfLoadPid') || '0104'; } catch (e) { return '0104'; }
+  });
   let wakeLock = null;
 
   const getAvailablePids = () => {
@@ -35,6 +41,7 @@ const App = () => {
 
   const rpmPids = getAvailablePids().filter(p => (p.Units === 'RPM' || p.Units === 'rpm'));
   const pressurePids = getAvailablePids().filter(p => (p.Units === 'mbar' || p.Units === 'bar' || p.Units === 'mBar'));
+  const loadPids = getAvailablePids().filter(p => (p.Units === '%' && p.name?.toLowerCase().includes('carga')));
 
   const startPollingFromStorage = () => {
     let pids = [];
@@ -155,14 +162,36 @@ const App = () => {
           <div className="dpf-page">
             <div className="dpf-pid-selectors glass-card">
               <div className="dpf-selector-item">
-                <label>RPM</label>
-                <select value={dpfRpmPid} onChange={(e) => { setDpfRpmPid(e.target.value); try { localStorage.setItem('dpfRpmPid', e.target.value); } catch(ex) {} }}>
-                  {rpmPids.map(p => (
-                    <option key={p.ModeAndPID} value={p.ModeAndPID}>{p.name} ({p.ModeAndPID})</option>
-                  ))}
-                  {rpmPids.length === 0 && <option value="010C">RPM (010C)</option>}
+                <label>Eje X</label>
+                <select value={dpfXMode} onChange={(e) => {
+                  setDpfXMode(e.target.value);
+                  try { localStorage.setItem('dpfXMode', e.target.value); } catch(ex) {}
+                }}>
+                  <option value="rpm">RPM</option>
+                  <option value="carga">Carga Motor</option>
                 </select>
               </div>
+              {dpfXMode === 'rpm' ? (
+                <div className="dpf-selector-item">
+                  <label>RPM</label>
+                  <select value={dpfRpmPid} onChange={(e) => { setDpfRpmPid(e.target.value); try { localStorage.setItem('dpfRpmPid', e.target.value); } catch(ex) {} }}>
+                    {rpmPids.map(p => (
+                      <option key={p.ModeAndPID} value={p.ModeAndPID}>{p.name} ({p.ModeAndPID})</option>
+                    ))}
+                    {rpmPids.length === 0 && <option value="010C">RPM (010C)</option>}
+                  </select>
+                </div>
+              ) : (
+                <div className="dpf-selector-item">
+                  <label>Carga</label>
+                  <select value={dpfLoadPid} onChange={(e) => { setDpfLoadPid(e.target.value); try { localStorage.setItem('dpfLoadPid', e.target.value); } catch(ex) {} }}>
+                    {loadPids.map(p => (
+                      <option key={p.ModeAndPID} value={p.ModeAndPID}>{p.name} ({p.ModeAndPID})</option>
+                    ))}
+                    {loadPids.length === 0 && <option value="0104">Carga Motor (0104)</option>}
+                  </select>
+                </div>
+              )}
               <div className="dpf-selector-item">
                 <label>Presión</label>
                 <select value={dpfDiffPid} onChange={(e) => { setDpfDiffPid(e.target.value); try { localStorage.setItem('dpfDiffPid', e.target.value); } catch(ex) {} }}>
@@ -182,6 +211,8 @@ const App = () => {
             <DpfChart
               rpm={data[dpfRpmPid]}
               diffPressure={data[dpfDiffPid]}
+              engineLoad={data[dpfLoadPid]}
+              xMode={dpfXMode}
               mode={dpfMode}
             />
             <div className="dpf-page-info glass-card">

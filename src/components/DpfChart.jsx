@@ -1,29 +1,58 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
-import { getDpfClogging, getDpfCurves, getDpfBounds } from '../utils/dpfReference';
+import {
+  getDpfClogging, getDpfCurves, getDpfBounds,
+  getDpfCloggingByCarga, getCargaCurves, getCargaBounds,
+} from '../utils/dpfReference';
 
-const DpfChart = ({ rpm, diffPressure, mode }) => {
+const DpfChart = ({ rpm, diffPressure, engineLoad, xMode, mode }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const { percentage, color, label } = getDpfClogging(rpm, diffPressure, mode);
-  const curves = getDpfCurves(mode);
-  const { rpmMin, rpmMax, presMax } = getDpfBounds(mode);
+
+  const isCarga = xMode === 'carga';
+  const load = parseFloat(engineLoad);
+
+  const { percentage, color, label } = isCarga
+    ? getDpfCloggingByCarga(load, diffPressure, mode)
+    : getDpfClogging(rpm, diffPressure, mode);
+
+  const curves = isCarga ? getCargaCurves(mode) : getDpfCurves(mode);
+  const bounds = isCarga ? getCargaBounds(mode) : getDpfBounds(mode);
+
+  const xMin = isCarga ? bounds.cargaMin : bounds.rpmMin;
+  const xMax = isCarga ? bounds.cargaMax : bounds.rpmMax;
+  const presMax = bounds.presMax;
+
+  const cargaReliable = isCarga && load >= 40;
+  const pointColor = isCarga && !cargaReliable ? 'rgba(100,116,139,0.6)' : color;
 
   const buildChart = (w, h, pad) => {
     const cw = w - pad.left - pad.right;
     const ch = h - pad.top - pad.bottom;
 
-    const x = (r) => pad.left + ((r - rpmMin) / (rpmMax - rpmMin)) * cw;
+    const x = (val) => pad.left + ((val - xMin) / (xMax - xMin)) * cw;
     const y = (p) => pad.top + ch - (p / presMax) * ch;
 
+    const xKey = isCarga ? 'carga' : 'rpm';
+
     const curvePoints = (key) =>
-      curves.map((c) => `${x(c.rpm)},${y(c[key])}`).join(' ');
+      curves.map((c) => `${x(c[xKey])},${y(c[key])}`).join(' ');
 
     const reversedCurvePoints = (key) =>
-      [...curves].reverse().map((c) => `${x(c.rpm)},${y(c[key])}`).join(' ');
+      [...curves].reverse().map((c) => `${x(c[xKey])},${y(c[key])}`).join(' ');
 
     const r = parseFloat(rpm);
     const p = parseFloat(diffPressure);
-    const hasData = !isNaN(r) && !isNaN(p) && r > 0 && percentage !== null;
+    const hasData = isCarga
+      ? !isNaN(load) && !isNaN(p) && load >= 0
+      : !isNaN(r) && !isNaN(p) && r > 0;
+
+    const px = isCarga ? x(load) : x(r);
+    const py = y(p);
+
+    const generateXTicks = () => {
+      if (isCarga) return [0, 25, 50, 75, 100];
+      return curves.map((c) => c[xKey]);
+    };
 
     const generateYTicks = (max) => {
       const target = 5;
@@ -42,6 +71,7 @@ const DpfChart = ({ rpm, diffPressure, mode }) => {
       return ticks;
     };
 
+    const xTicks = generateXTicks();
     const yTicks = generateYTicks(presMax);
 
     return (
@@ -49,7 +79,7 @@ const DpfChart = ({ rpm, diffPressure, mode }) => {
         <rect x="0" y="0" width={w} height={h} fill="rgba(255,255,255,0.02)" rx="8" />
 
         <polygon
-          points={`${curvePoints('limpio')} ${x(rpmMax)},${y(0)} ${x(rpmMin)},${y(0)}`}
+          points={`${curvePoints('limpio')} ${x(xMax)},${y(0)} ${x(xMin)},${y(0)}`}
           fill="rgba(34,197,94,0.25)"
         />
 
@@ -59,15 +89,15 @@ const DpfChart = ({ rpm, diffPressure, mode }) => {
         />
 
         <polygon
-          points={`${curvePoints('sucio')} ${x(rpmMax)},${y(presMax)} ${x(rpmMin)},${y(presMax)}`}
+          points={`${curvePoints('sucio')} ${x(xMax)},${y(presMax)} ${x(xMin)},${y(presMax)}`}
           fill="rgba(239,68,68,0.22)"
         />
 
-        <line x1={x(rpmMin)} y1={y(0)} x2={x(rpmMax)} y2={y(0)} stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
+        <line x1={x(xMin)} y1={y(0)} x2={x(xMax)} y2={y(0)} stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
 
-        {curves.map((c, i) => (
-          <text key={i} x={x(c.rpm)} y={y(0) + 16} textAnchor="middle" fill="#94a3b8" fontSize={isExpanded ? "11" : "9"} fontFamily="inherit">
-            {c.rpm}
+        {xTicks.map((val, i) => (
+          <text key={i} x={x(val)} y={y(0) + 16} textAnchor="middle" fill="#94a3b8" fontSize={isExpanded ? "11" : "9"} fontFamily="inherit">
+            {val}
           </text>
         ))}
 
@@ -79,10 +109,10 @@ const DpfChart = ({ rpm, diffPressure, mode }) => {
 
         {hasData && (
           <>
-            <line x1={pad.left} y1={y(p)} x2={x(rpmMax) + pad.right} y2={y(p)} stroke={color} strokeWidth="0.5" strokeDasharray="3,3" opacity="0.6" />
-            <line x1={x(r)} y1={y(p)} x2={x(r)} y2={y(0)} stroke={color} strokeWidth="0.5" strokeDasharray="3,3" opacity="0.6" />
-            <circle cx={x(r)} cy={y(p)} r={isExpanded ? "7" : "5"} fill={color} stroke="#0f172a" strokeWidth="2" />
-            <text x={x(r)} y={y(p) - 10} textAnchor="middle" fill={color} fontSize={isExpanded ? "12" : "10"} fontWeight="bold" fontFamily="inherit">
+            <line x1={pad.left} y1={py} x2={x(xMax) + pad.right} y2={py} stroke={pointColor} strokeWidth="0.5" strokeDasharray="3,3" opacity="0.6" />
+            <line x1={px} y1={py} x2={px} y2={y(0)} stroke={pointColor} strokeWidth="0.5" strokeDasharray="3,3" opacity="0.6" />
+            <circle cx={px} cy={py} r={isExpanded ? "7" : "5"} fill={pointColor} stroke="#0f172a" strokeWidth="2" opacity={isCarga && !cargaReliable ? 0.5 : 1} />
+            <text x={px} y={py - 10} textAnchor="middle" fill={pointColor} fontSize={isExpanded ? "12" : "10"} fontWeight="bold" fontFamily="inherit" opacity={isCarga && !cargaReliable ? 0.5 : 1}>
               {Math.round(p)} mbar
             </text>
           </>
@@ -90,7 +120,7 @@ const DpfChart = ({ rpm, diffPressure, mode }) => {
 
         {!hasData && (
           <text x={w / 2} y={h / 2} textAnchor="middle" fill="#475569" fontSize={isExpanded ? "14" : "12"} fontFamily="inherit">
-            RPM + Presión DIF requeridos
+            {isCarga ? 'Carga + Presión DIF requeridos' : 'RPM + Presión DIF requeridos'}
           </text>
         )}
       </svg>
@@ -101,20 +131,28 @@ const DpfChart = ({ rpm, diffPressure, mode }) => {
   const w = 320;
   const h = 180;
 
+  const title = isCarga
+    ? `ATASCO DPF · ${mode === 'media_carga' ? 'Media carga' : 'Sin carga'}` + (isCarga && !cargaReliable && load >= 0 ? ' (baja carga)' : '')
+    : `ATASCO DPF · ${mode === 'media_carga' ? 'Media carga' : 'Sin carga'}`;
+
+  const headerExtra = isCarga
+    ? <span className="dpf-chart-load" style={{ opacity: cargaReliable ? 1 : 0.4 }}>⚡{!isNaN(load) ? `${Math.round(load)}%` : '--'}</span>
+    : null;
+
   return (
     <>
       <div className="dpf-chart-card glass-card" onClick={() => setIsExpanded(true)}>
         <div className="dpf-chart-header">
-          <span className="dpf-chart-title">ATASCO DPF{ mode === 'media_carga' ? ' · Media carga' : ' · Sin carga' }</span>
+          <span className="dpf-chart-title">{title}</span>
           <span className="dpf-chart-value" style={{ color }}>
-            {percentage !== null ? `${percentage}%` : '--'}
+            {percentage !== null ? `${percentage}%` : '--'} {headerExtra}
           </span>
         </div>
 
         {buildChart(w, h, pad)}
 
-        <div className="dpf-chart-label" style={{ color }}>
-          {label}
+        <div className="dpf-chart-label" style={{ color: pointColor }}>
+          {isCarga && !cargaReliable && load >= 0 ? 'Esperando carga > 40%...' : label}
         </div>
       </div>
 
@@ -122,8 +160,8 @@ const DpfChart = ({ rpm, diffPressure, mode }) => {
         <div className="dpf-chart-overlay" onClick={() => setIsExpanded(false)}>
           <div className="dpf-chart-overlay-inner" onClick={(e) => e.stopPropagation()}>
             <div className="dpf-chart-overlay-header">
-              <span className="dpf-chart-title">ATASCO DPF{ mode === 'media_carga' ? ' · Media carga' : ' · Sin carga' }</span>
-              <span className="dpf-chart-overlay-value" style={{ color }}>{percentage !== null ? `${percentage}%` : '--'}</span>
+              <span className="dpf-chart-title">{title}</span>
+              <span className="dpf-chart-overlay-value" style={{ color: pointColor }}>{percentage !== null ? `${percentage}%` : '--'} {headerExtra}</span>
               <button className="dpf-chart-close-btn" onClick={() => setIsExpanded(false)}>
                 <X size={22} />
               </button>
@@ -131,7 +169,9 @@ const DpfChart = ({ rpm, diffPressure, mode }) => {
             <div className="dpf-chart-overlay-svg">
               {buildChart(w * 3, h * 2.5, { left: 56, right: 24, top: 24, bottom: 40 })}
             </div>
-            <div className="dpf-chart-overlay-label" style={{ color }}>{label}</div>
+            <div className="dpf-chart-overlay-label" style={{ color: pointColor }}>
+              {isCarga && !cargaReliable && load >= 0 ? 'Esperando carga > 40%...' : label}
+            </div>
           </div>
         </div>
       )}

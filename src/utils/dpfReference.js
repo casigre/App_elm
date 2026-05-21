@@ -155,3 +155,91 @@ export function getDpfBounds(mode) {
     presMax: curves[curves.length - 1].sucio + 20,
   };
 }
+
+const CARGA_SIN_CARGA = [
+  { carga: 0,   limpio: 2,  medio: 5,  sucio: 10 },
+  { carga: 25,  limpio: 8,  medio: 20, sucio: 40 },
+  { carga: 50,  limpio: 20, medio: 50, sucio: 120 },
+  { carga: 100, limpio: 70, medio: 170, sucio: 350 },
+];
+
+const CARGA_MEDIA_CARGA = [
+  { carga: 0,   limpio: 4,   medio: 8,   sucio: 15 },
+  { carga: 25,  limpio: 15,  medio: 35,  sucio: 65 },
+  { carga: 50,  limpio: 40,  medio: 90,  sucio: 200 },
+  { carga: 100, limpio: 120, medio: 280, sucio: 520 },
+];
+
+function getCargaDataset(mode) {
+  const m = mode || getDpfMode();
+  return m === 'media_carga' ? CARGA_MEDIA_CARGA : CARGA_SIN_CARGA;
+}
+
+function interpolateCarga(carga, keyA, keyB, mode) {
+  const curves = getCargaDataset(mode);
+
+  if (carga <= curves[0].carga) return curves[0];
+  if (carga >= curves[curves.length - 1].carga)
+    return curves[curves.length - 1];
+
+  for (let i = 0; i < curves.length - 1; i++) {
+    const lo = curves[i];
+    const hi = curves[i + 1];
+    if (carga >= lo.carga && carga <= hi.carga) {
+      const t = (carga - lo.carga) / (hi.carga - lo.carga);
+      return {
+        carga,
+        [keyA]: lo[keyA] + (hi[keyA] - lo[keyA]) * t,
+        [keyB]: lo[keyB] + (hi[keyB] - lo[keyB]) * t,
+      };
+    }
+  }
+  return curves[curves.length - 1];
+}
+
+export function getDpfCloggingByCarga(carga, pressure, mode) {
+  const c = parseFloat(carga);
+  const p = parseFloat(pressure);
+
+  if (isNaN(c) || isNaN(p) || c < 0) {
+    return { percentage: null, zone: 'unknown', color: '#64748b', label: 'Sin datos' };
+  }
+
+  const pt = interpolateCarga(c, 'limpio', 'sucio', mode);
+  const limpio = pt.limpio;
+  const sucio = pt.sucio;
+
+  const range = sucio - limpio;
+  const raw = range > 0 ? ((p - limpio) / range) * 100 : 0;
+  const percentage = Math.min(Math.max(raw, 0), 100);
+
+  let zone, color, label;
+  if (percentage < 30) {
+    zone = 'limpio';
+    color = '#4ade80';
+    label = 'Filtro limpio';
+  } else if (percentage < 70) {
+    zone = 'medio';
+    color = '#facc15';
+    label = 'Capacidad media';
+  } else {
+    zone = 'sucio';
+    color = '#ef4444';
+    label = 'Requiere regeneración';
+  }
+
+  return { percentage: Math.round(percentage), zone, color, label };
+}
+
+export function getCargaCurves(mode) {
+  return getCargaDataset(mode);
+}
+
+export function getCargaBounds(mode) {
+  const curves = getCargaDataset(mode);
+  return {
+    cargaMin: curves[0].carga,
+    cargaMax: curves[curves.length - 1].carga,
+    presMax: curves[curves.length - 1].sucio + 30,
+  };
+}

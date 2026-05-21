@@ -7,6 +7,7 @@ KMS REG,KMS REG,222554,(A*256+B+C),0,1000,KM,7E0,Renault K9
 Mod DPF,Mod DPF,222056,(A&15),0,7,,7E0,Renault K9
 Temperatura de Agua,T_AGUA,222001,(A*256+B-2730)/10,-40,150,°C,7E0,Renault K9
 RPM,RPM,010C,((A*256)+B)/4,700,8000,RPM,AUTO,Renault K9
+Carga Motor,LOAD,0104,A*100/255,0,100,%,AUTO,Renault K9
 Voltaje de Batería,VOLT,222005,(A*256+B)/100,0,18,V,7E0,Renault K9
 Presión Turbo,PRES_TURBO,222401,(A*256+B),0,3000,mbar,7E0,Renault K9
 Caudal de Aire,AIRE,2224F2,(A*256+B)/10,0,500,kg/h,7E0,Renault K9
