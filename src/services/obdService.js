@@ -480,7 +480,7 @@ class ObdService {
             } catch (err) {
               console.error(`Error polling ${pid.name}:`, err);
             }
-            await new Promise(r => setTimeout(r, 100));
+            await new Promise(r => setTimeout(r, 50));
           }
         } catch (err) {
           console.error(`Error switching to header ${header}:`, err);
@@ -499,10 +499,10 @@ class ObdService {
       }
 
       this.isPollingCycleActive = false;
-      this.pollingTimeout = setTimeout(cycle, 2000);
+      this.pollingTimeout = setTimeout(cycle, 500);
     };
 
-    this.pollingTimeout = setTimeout(cycle, 500);
+    this.pollingTimeout = setTimeout(cycle, 250);
   }
 
   async pollPid(pidCode) {

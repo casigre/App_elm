@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Zap, Gauge, History, Search, Power, BarChart3 } from 'lucide-react';
+import { Settings, Zap, Gauge, History, Search, Power, BarChart3, Monitor } from 'lucide-react';
 import { App as CapApp } from '@capacitor/app';
 import Dashboard from './components/Dashboard';
 import DpfChart from './components/DpfChart';
 import DpfSettings from './components/DpfSettings';
 import PidSelector from './components/PidSelector';
 import obdService from './services/obdService';
+import { getDpfMode, setDpfMode } from './utils/dpfReference';
 
 const App = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -22,6 +23,7 @@ const App = () => {
   const [dpfDiffPid, setDpfDiffPid] = useState(() => {
     try { return localStorage.getItem('dpfDiffPid') || '222542'; } catch (e) { return '222542'; }
   });
+  const [dpfMode, setDpfModeState] = useState(getDpfMode);
   let wakeLock = null;
 
   const getAvailablePids = () => {
@@ -122,6 +124,14 @@ const App = () => {
     }
   };
 
+  const handleCast = () => {
+    try {
+      window.open('intent:#Intent;action=android.settings.CAST_SETTINGS;end', '_blank');
+    } catch {
+      alert('Usa el botón “Emitir pantalla” en los ajustes rápidos de Android');
+    }
+  };
+
   return (
     <div className="app-container">
       <header className="app-header">
@@ -163,9 +173,16 @@ const App = () => {
                 </select>
               </div>
             </div>
+            <div className="dpf-mode-bar">
+              <div className="mode-toggle">
+                <button className={`mode-btn ${dpfMode === 'sin_carga' ? 'active' : ''}`} onClick={() => { setDpfMode('sin_carga'); setDpfModeState('sin_carga'); }}>Sin carga</button>
+                <button className={`mode-btn ${dpfMode === 'media_carga' ? 'active' : ''}`} onClick={() => { setDpfMode('media_carga'); setDpfModeState('media_carga'); }}>Media carga</button>
+              </div>
+            </div>
             <DpfChart
               rpm={data[dpfRpmPid]}
               diffPressure={data[dpfDiffPid]}
+              mode={dpfMode}
             />
             <div className="dpf-page-info glass-card">
               <h3>Interpretación del gráfico</h3>
@@ -176,7 +193,7 @@ const App = () => {
                 <li><span className="legend-dot" style={{background:'#ef4444'}}></span> Rojo: Necesita regeneración</li>
               </ul>
             </div>
-            <DpfSettings />
+            <DpfSettings mode={dpfMode} />
           </div>
         )}
         {activeTab === 'pids' && <PidSelector />}
@@ -242,6 +259,10 @@ const App = () => {
         <button onClick={() => setActiveTab('settings')} className={`nav-item ${activeTab === 'settings' ? 'nav-active' : ''}`}>
           <Settings size={22} />
           <span className="nav-label">AJUSTES</span>
+        </button>
+        <button onClick={handleCast} className="nav-item" title="Emitir pantalla">
+          <Monitor size={22} />
+          <span className="nav-label">EMITIR</span>
         </button>
       </nav>
     </div>

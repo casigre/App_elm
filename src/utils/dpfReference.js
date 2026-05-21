@@ -1,55 +1,102 @@
-const DPF_REFERENCE = [
-  { rpm: 800,  limpio: 5,  medio: 15, sucio: 40 },
-  { rpm: 1500, limpio: 10, medio: 30, sucio: 70 },
-  { rpm: 2500, limpio: 20, medio: 50, sucio: 120 },
-  { rpm: 3500, limpio: 30, medio: 80, sucio: 180 },
+const SIN_CARGA = [
+  { rpm: 800,  limpio: 5,   medio: 15,  sucio: 40 },
+  { rpm: 1500, limpio: 10,  medio: 30,  sucio: 70 },
+  { rpm: 2500, limpio: 20,  medio: 50,  sucio: 120 },
+  { rpm: 3500, limpio: 30,  medio: 80,  sucio: 180 },
 ];
 
-export function getDefaultClean() {
-  return { 800: 5, 1500: 10, 2500: 20, 3500: 30 };
+const MEDIA_CARGA = [
+  { rpm: 800,  limpio: 9,   medio: 17,  sucio: 32 },
+  { rpm: 1500, limpio: 32,  medio: 60,  sucio: 112 },
+  { rpm: 2500, limpio: 85,  medio: 162, sucio: 298 },
+  { rpm: 3500, limpio: 169, medio: 322, sucio: 592 },
+];
+
+function getBaseDataset(mode) {
+  const m = mode || getDpfMode();
+  return m === 'media_carga' ? MEDIA_CARGA : SIN_CARGA;
 }
 
-export function loadCustomClean() {
+export function getDpfMode() {
   try {
-    const raw = localStorage.getItem('dpfCleanValues');
+    const raw = localStorage.getItem('dpfMode');
+    return raw === 'media_carga' ? 'media_carga' : 'sin_carga';
+  } catch (e) {
+    return 'sin_carga';
+  }
+}
+
+export function setDpfMode(mode) {
+  try {
+    localStorage.setItem('dpfMode', mode);
+  } catch (e) {}
+}
+
+function getOverrideKey(mode) {
+  return mode === 'media_carga' ? 'dpfCleanValuesMedia' : 'dpfCleanValues';
+}
+
+export function getDefaultClean(mode) {
+  const m = mode || getDpfMode();
+  const base = getBaseDataset(m);
+  const result = {};
+  for (const ref of base) {
+    result[ref.rpm] = ref.limpio;
+  }
+  return result;
+}
+
+export function loadCustomClean(mode) {
+  try {
+    const m = mode || getDpfMode();
+    const key = getOverrideKey(m);
+    const raw = localStorage.getItem(key);
     return raw ? JSON.parse(raw) : null;
   } catch (e) {
     return null;
   }
 }
 
-export function saveCustomClean(values) {
+export function saveCustomClean(values, mode) {
   try {
+    const m = mode || getDpfMode();
+    const key = getOverrideKey(m);
     if (values) {
-      localStorage.setItem('dpfCleanValues', JSON.stringify(values));
+      localStorage.setItem(key, JSON.stringify(values));
     } else {
-      localStorage.removeItem('dpfCleanValues');
+      localStorage.removeItem(key);
     }
   } catch (e) {}
 }
 
-function applyCleanOverrides() {
-  const custom = loadCustomClean();
-  if (!custom) return;
-  for (const ref of DPF_REFERENCE) {
-    if (custom[ref.rpm] !== undefined) {
-      const newClean = Number(custom[ref.rpm]);
-      ref.limpio = newClean;
-      ref.medio = Math.round(newClean * 1.9);
-      ref.sucio = Math.round(newClean * 3.5);
+function getWorkingCurves(mode) {
+  const m = mode || getDpfMode();
+  const base = getBaseDataset(m);
+  const curves = base.map(c => ({ ...c }));
+  const custom = loadCustomClean(m);
+  if (custom) {
+    for (const ref of curves) {
+      if (custom[ref.rpm] !== undefined) {
+        const newClean = Number(custom[ref.rpm]);
+        ref.limpio = newClean;
+        ref.medio = Math.round(newClean * 1.9);
+        ref.sucio = Math.round(newClean * 3.5);
+      }
     }
   }
+  return curves;
 }
 
-function interpolate(rpm, keyA, keyB) {
-  applyCleanOverrides();
-  if (rpm <= DPF_REFERENCE[0].rpm) return DPF_REFERENCE[0];
-  if (rpm >= DPF_REFERENCE[DPF_REFERENCE.length - 1].rpm)
-    return DPF_REFERENCE[DPF_REFERENCE.length - 1];
+function interpolate(rpm, keyA, keyB, mode) {
+  const curves = getWorkingCurves(mode);
 
-  for (let i = 0; i < DPF_REFERENCE.length - 1; i++) {
-    const lo = DPF_REFERENCE[i];
-    const hi = DPF_REFERENCE[i + 1];
+  if (rpm <= curves[0].rpm) return curves[0];
+  if (rpm >= curves[curves.length - 1].rpm)
+    return curves[curves.length - 1];
+
+  for (let i = 0; i < curves.length - 1; i++) {
+    const lo = curves[i];
+    const hi = curves[i + 1];
     if (rpm >= lo.rpm && rpm <= hi.rpm) {
       const t = (rpm - lo.rpm) / (hi.rpm - lo.rpm);
       return {
@@ -59,10 +106,10 @@ function interpolate(rpm, keyA, keyB) {
       };
     }
   }
-  return DPF_REFERENCE[DPF_REFERENCE.length - 1];
+  return curves[curves.length - 1];
 }
 
-export function getDpfClogging(rpm, pressure) {
+export function getDpfClogging(rpm, pressure, mode) {
   const r = parseFloat(rpm);
   const p = parseFloat(pressure);
 
@@ -70,7 +117,7 @@ export function getDpfClogging(rpm, pressure) {
     return { percentage: null, zone: 'unknown', color: '#64748b', label: 'Sin datos' };
   }
 
-  const pt = interpolate(r, 'limpio', 'sucio');
+  const pt = interpolate(r, 'limpio', 'sucio', mode);
   const limpio = pt.limpio;
   const sucio = pt.sucio;
 
@@ -96,16 +143,15 @@ export function getDpfClogging(rpm, pressure) {
   return { percentage: Math.round(percentage), zone, color, label };
 }
 
-export function getDpfCurves() {
-  applyCleanOverrides();
-  return DPF_REFERENCE;
+export function getDpfCurves(mode) {
+  return getWorkingCurves(mode);
 }
 
-export function getDpfBounds() {
-  applyCleanOverrides();
+export function getDpfBounds(mode) {
+  const curves = getWorkingCurves(mode);
   return {
-    rpmMin: DPF_REFERENCE[0].rpm,
-    rpmMax: DPF_REFERENCE[DPF_REFERENCE.length - 1].rpm,
-    presMax: DPF_REFERENCE[DPF_REFERENCE.length - 1].sucio + 20,
+    rpmMin: curves[0].rpm,
+    rpmMax: curves[curves.length - 1].rpm,
+    presMax: curves[curves.length - 1].sucio + 20,
   };
 }
